@@ -1,0 +1,183 @@
+:root {
+  --ink: #17324d;
+  --muted: #557089;
+  --line: rgba(23, 50, 77, 0.14);
+  --rain: #2f6fb3;
+  --warm: #e0893a;
+  --cool: #4a90c9;
+  --sky-top: #bcdcf2;
+  --sky-bottom: #eef6fc;
+  --panel: rgba(255, 255, 255, 0.55);
+}
+
+body[data-sky="partly-day"] { --sky-top: #c9dbe8; --sky-bottom: #f0f4f7; }
+body[data-sky="cloudy"]     { --sky-top: #b9c3cc; --sky-bottom: #e6eaee; --panel: rgba(255,255,255,0.5); }
+body[data-sky="rain"]       { --sky-top: #8fa3b6; --sky-bottom: #d5dde5; --panel: rgba(255,255,255,0.48); }
+body[data-sky="snow"]       { --sky-top: #d4dfe8; --sky-bottom: #f7f9fb; }
+body[data-sky="night"] {
+  --ink: #e6edf6;
+  --muted: #9fb2c8;
+  --line: rgba(230, 237, 246, 0.16);
+  --rain: #7fb3ea;
+  --sky-top: #142036;
+  --sky-bottom: #2a3a58;
+  --panel: rgba(255, 255, 255, 0.07);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'IBM Plex Sans KR', system-ui, sans-serif;
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-bottom) 70%) fixed;
+  background-color: var(--sky-bottom);
+  transition: background 0.8s ease, color 0.8s ease;
+  line-height: 1.5;
+}
+
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+}
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* 상단 바 */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.bar select, .bar button {
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+.bar select { font-weight: 600; font-size: 1.05rem; padding-right: 10px; }
+.bar select option { color: #17324d; }
+.bar button:hover, .bar select:hover { border-color: var(--muted); }
+:focus-visible { outline: 2px solid var(--rain); outline-offset: 2px; }
+.stamp { margin-left: auto; font-size: 0.82rem; color: var(--muted); }
+
+/* 현재 날씨 */
+.now {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: end;
+  gap: 4px 28px;
+  padding: 40px 0 36px;
+  min-height: 220px;
+}
+.now .temp {
+  font-size: clamp(5.5rem, 18vw, 9.5rem);
+  font-weight: 200;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  margin: 0;
+}
+.now .temp sup { font-size: 0.4em; font-weight: 300; vertical-align: 0.95em; margin-left: 0.04em; }
+.now .side { padding-bottom: 10px; }
+.now .cond { display: flex; align-items: center; gap: 10px; font-size: 1.5rem; font-weight: 500; margin: 0 0 6px; }
+.now .cond svg { width: 44px; height: 44px; }
+.now .where { margin: 0 0 14px; color: var(--muted); }
+.now dl { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0; }
+.now dl div { display: flex; gap: 6px; align-items: baseline; }
+.now dt { color: var(--muted); font-size: 0.88rem; }
+.now dd { margin: 0; font-weight: 500; font-variant-numeric: tabular-nums; }
+.loading, .error { grid-column: 1 / -1; color: var(--muted); }
+.error { color: inherit; background: var(--panel); border-left: 3px solid #c0503a; padding: 10px 14px; border-radius: 4px; }
+.error small { display: block; color: var(--muted); margin-top: 4px; }
+
+/* 섹션 */
+.block {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px 0 14px;
+  margin-top: 16px;
+  backdrop-filter: blur(6px);
+}
+.block-head { display: flex; align-items: baseline; gap: 12px; padding: 0 20px 8px; }
+.block h2 { font-size: 1rem; font-weight: 600; margin: 0; }
+.src { font-size: 0.8rem; color: var(--muted); }
+
+/* 시간별 차트 */
+.hourly { overflow-x: auto; padding: 0 12px; scrollbar-width: thin; }
+.hourly svg { display: block; }
+.hourly text { fill: var(--ink); font-family: inherit; }
+.hourly .t-label { font-size: 13px; font-weight: 500; }
+.hourly .h-label { font-size: 12px; fill: var(--muted); }
+.hourly .d-label { font-size: 12px; font-weight: 600; }
+.hourly .pop-label { font-size: 11px; fill: var(--rain); }
+.hourly .curve { fill: none; stroke: var(--ink); stroke-width: 1.6; opacity: 0.75; }
+.hourly .area { fill: var(--ink); opacity: 0.06; }
+.hourly .dot { fill: var(--ink); }
+.hourly .pop-bar { fill: var(--rain); opacity: 0.55; }
+.hourly .day-rule { stroke: var(--line); }
+
+/* 날짜별 */
+.daily { list-style: none; margin: 0; padding: 0 20px; }
+.daily li {
+  display: grid;
+  grid-template-columns: 4.6rem 4.2rem minmax(0, 1fr) 3.2rem minmax(120px, 1.4fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.daily li:first-child { border-top: 0; }
+.daily .day b { display: block; font-weight: 600; }
+.daily .day span { font-size: 0.8rem; color: var(--muted); }
+.daily .icons { display: flex; gap: 2px; }
+.daily .icons svg { width: 30px; height: 30px; }
+.daily .wf { font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.daily .pop { color: var(--rain); font-size: 0.9rem; text-align: right; }
+.range { display: grid; grid-template-columns: 2.4rem 1fr 2.4rem; align-items: center; gap: 8px; }
+.range .lo { color: var(--muted); text-align: right; }
+.range .hi { font-weight: 600; }
+.range .track { position: relative; height: 6px; border-radius: 3px; background: var(--line); }
+.range .fill {
+  position: absolute; top: 0; bottom: 0; border-radius: 3px;
+  background: linear-gradient(90deg, var(--cool), var(--warm));
+}
+.daily .src-tag { font-size: 0.72rem; color: var(--muted); }
+.empty { padding: 8px 20px; color: var(--muted); }
+
+.foot { margin-top: 28px; font-size: 0.8rem; color: var(--muted); }
+
+/* 아이콘 색 */
+.ic-sun { fill: #f2b233; }
+.ic-moon { fill: #f4d58d; }
+.ic-cloud { fill: #ffffff; stroke: #8796a6; stroke-width: 1.4; }
+body[data-sky="night"] .ic-cloud { fill: #6f7f96; stroke: #a9b7c8; }
+.ic-drop { stroke: var(--rain); stroke-width: 2; stroke-linecap: round; }
+.ic-flake { fill: #8fb4d6; }
+
+@media (max-width: 640px) {
+  .now { grid-template-columns: 1fr; padding: 28px 0 24px; }
+  .stamp { width: 100%; margin-left: 0; }
+  .daily li {
+    grid-template-columns: 3.6rem 3.6rem minmax(0, 1fr);
+    grid-template-areas: "day icons range" "day icons wf";
+    row-gap: 2px;
+  }
+  .daily .day { grid-area: day; }
+  .daily .icons { grid-area: icons; }
+  .daily .wf { grid-area: wf; font-size: 0.82rem; color: var(--muted); }
+  .daily .pop { display: none; }
+  .daily .range { grid-area: range; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body { transition: none; }
+}

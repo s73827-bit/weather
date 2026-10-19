@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>오늘 날씨</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body data-sky="clear-day">
+  <div class="page">
+    <header class="bar">
+      <label class="place">
+        <span class="sr">지역 선택</span>
+        <select id="city"></select>
+      </label>
+      <button id="locate" type="button">내 위치</button>
+      <button id="refresh" type="button" aria-label="새로고침">새로고침</button>
+      <span id="stamp" class="stamp"></span>
+    </header>
+
+    <section class="now" id="now" aria-live="polite">
+      <p class="loading">날씨를 불러오는 중…</p>
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>시간별</h2>
+        <span class="src" id="short-src"></span>
+      </div>
+      <div class="hourly" id="hourly" tabindex="0" aria-label="시간별 예보, 가로로 스크롤"></div>
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>날짜별</h2>
+        <span class="src" id="daily-src"></span>
+      </div>
+      <ol class="daily" id="daily"></ol>
+    </section>
+
+    <footer class="foot">자료: 기상청 단기예보·중기예보 조회서비스 (기상청 API허브)</footer>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
