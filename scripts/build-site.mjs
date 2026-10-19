@@ -24,6 +24,10 @@ for (const city of CITIES) {
 
 // 모든 도시가 완전히 실패하면(키 오류 등) 배포를 막아 이전 정상 사이트를 유지
 if (failed === CITIES.length) {
+  // GitHub Actions 주석으로 남겨 로그를 열지 않아도 원인이 보이게 함 (키 값은 출력하지 않음)
+  const keyLen = process.env.KMA_AUTH_KEY?.trim().length ?? 0;
+  const sample = await cityWeather(CITIES[0]);
+  console.log(`::error title=데이터 수집 실패::인증키 길이 ${keyLen}자 / 실황: ${sample.now.error} / 중기: ${sample.mid.error}`);
   console.error('모든 도시의 데이터 수집에 실패했습니다. 배포를 중단합니다.');
   process.exit(1);
 }
