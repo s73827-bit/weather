@@ -25,10 +25,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: API허브 연결 진단
+        continue-on-error: true
+        env:
+          KMA_AUTH_KEY: ${{ secrets.KMA_AUTH_KEY }}
+        run: |
+          U=https://apihub.kma.go.kr/api/typ01/url/fct_afs_wc.php?reg=11B10101\&disp=1
+          ok=$(curl -s -o /dev/null -m 60 -w "%{http_code} %{time_total}s" "$U&authKey=$KMA_AUTH_KEY" || echo "실패(exit $?)")
+          bad=$(curl -s -o /dev/null -m 60 -w "%{http_code} %{time_total}s" "$U&authKey=invalid" || echo "실패(exit $?)")
+          echo "::notice title=API허브 연결 진단::올바른 키: $ok / 틀린 키: $bad / 러너 IP: $(curl -s -m 10 https://api.ipify.org)"
       - name: 기상청 데이터 수집
         run: node scripts/build-site.mjs _site
         env:
           KMA_AUTH_KEY: ${{ secrets.KMA_AUTH_KEY }}
+          KMA_TIMEOUT_MS: 30000
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

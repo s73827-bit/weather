@@ -12,22 +12,18 @@ await cp('public', OUT, { recursive: true });
 await mkdir(join(OUT, 'data'), { recursive: true });
 await writeFile(join(OUT, 'data', 'cities.json'), JSON.stringify(cityList()));
 
-let failed = 0;
 // API허브 부담을 줄이려고 도시를 순서대로 처리
-for (const city of CITIES) {
+for (const [i, city] of CITIES.entries()) {
   const data = await cityWeather(city);
   const errors = ['now', 'short', 'mid'].filter((k) => data[k].error);
-  if (errors.length === 3) failed++;
   console.log(`${city.name}: ${errors.length ? '실패 ' + errors.map((k) => `${k}(${data[k].error})`).join(', ') : 'OK'}`);
-  await writeFile(join(OUT, 'data', `${city.id}.json`), JSON.stringify(data));
-}
 
-// 모든 도시가 완전히 실패하면(키 오류 등) 배포를 막아 이전 정상 사이트를 유지
-if (failed === CITIES.length) {
+  // 첫 도시가 완전히 실패하면(키 오류, 연결 불가 등) 나머지도 실패하므로 즉시 중단해 이전 정상 사이트를 유지
   // GitHub Actions 주석으로 남겨 로그를 열지 않아도 원인이 보이게 함 (키 값은 출력하지 않음)
-  const keyLen = process.env.KMA_AUTH_KEY?.trim().length ?? 0;
-  const sample = await cityWeather(CITIES[0]);
-  console.log(`::error title=데이터 수집 실패::인증키 길이 ${keyLen}자 / 실황: ${sample.now.error} / 중기: ${sample.mid.error}`);
-  console.error('모든 도시의 데이터 수집에 실패했습니다. 배포를 중단합니다.');
-  process.exit(1);
+  if (i === 0 && errors.length === 3) {
+    const keyLen = process.env.KMA_AUTH_KEY?.trim().length ?? 0;
+    console.log(`::error title=데이터 수집 실패::인증키 길이 ${keyLen}자 / 실황: ${data.now.error} / 중기: ${data.mid.error}`);
+    process.exit(1);
+  }
+  await writeFile(join(OUT, 'data', `${city.id}.json`), JSON.stringify(data));
 }
