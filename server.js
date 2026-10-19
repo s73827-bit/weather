@@ -1,9 +1,11 @@
+// 로컬 개발 서버: 정적 파일 + data/*.json을 요청 시점에 기상청 API로 생성
+// GitHub Pages에서는 scripts/build-site.mjs가 같은 경로의 JSON을 미리 만들어 둠
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CITIES, findCity, nearestCity } from './lib/regions.js';
-import { getMid, getNow, getShort, latLonToGrid } from './lib/kma.js';
+import { findCity } from './lib/regions.js';
+import { cityList, cityWeather } from './lib/data.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
@@ -17,28 +19,6 @@ const MIME = {
 function sendJson(res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(body));
-}
-
-// 각 섹션을 독립적으로 받아, 하나가 실패해도 나머지는 표시
-const settle = (p) => p.then((data) => ({ data }), (e) => ({ error: e.message }));
-
-async function handleWeather(url, res) {
-  const lat = Number(url.searchParams.get('lat'));
-  const lon = Number(url.searchParams.get('lon'));
-  const useCoords = url.searchParams.has('lat') && Number.isFinite(lat) && Number.isFinite(lon);
-
-  const city = useCoords ? nearestCity(lat, lon) : findCity(url.searchParams.get('city') || '서울');
-  if (!city) return sendJson(res, 400, { error: '알 수 없는 도시입니다.' });
-
-  const { nx, ny } = useCoords ? latLonToGrid(lat, lon) : latLonToGrid(city.lat, city.lon);
-  const [now, short, mid] = await Promise.all([settle(getNow(nx, ny)), settle(getShort(nx, ny)), settle(getMid(city))]);
-
-  sendJson(res, 200, {
-    location: { name: useCoords ? `내 위치 (${city.name} 인근)` : city.name, nx, ny, midRegion: city.name },
-    now,
-    short,
-    mid,
-  });
 }
 
 async function serveStatic(path, res) {
@@ -60,8 +40,12 @@ async function serveStatic(path, res) {
 createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   try {
-    if (url.pathname === '/api/cities') return sendJson(res, 200, CITIES.map((c) => c.name));
-    if (url.pathname === '/api/weather') return await handleWeather(url, res);
+    if (url.pathname === '/data/cities.json') return sendJson(res, 200, cityList());
+    const m = url.pathname.match(/^\/data\/([a-z]+)\.json$/);
+    if (m) {
+      const city = findCity(m[1]);
+      return city ? sendJson(res, 200, await cityWeather(city)) : sendJson(res, 404, { error: '알 수 없는 도시입니다.' });
+    }
     return await serveStatic(url.pathname, res);
   } catch (e) {
     console.error(e);

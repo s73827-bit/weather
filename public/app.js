@@ -224,53 +224,69 @@ function renderDaily(shortRes, midRes) {
 }
 
 // ---------- 데이터 로딩 ----------
-let lastQuery = null;
+// data/*.json: 로컬에서는 server.js가 요청 시 생성, GitHub Pages에서는 Actions가 30분마다 생성
+let cities = [];
+let currentId = null;
+let currentLabel = null;
 
-async function load(query) {
-  lastQuery = query;
+function nearestCity(lat, lon) {
+  const dist = (c) => (c.lat - lat) ** 2 + ((c.lon - lon) * Math.cos((lat * Math.PI) / 180)) ** 2;
+  return cities.reduce((a, b) => (dist(b) < dist(a) ? b : a));
+}
+
+async function load(id, label) {
+  currentId = id;
+  currentLabel = label;
   $('#stamp').textContent = '불러오는 중…';
   try {
-    const res = await fetch(`/api/weather?${new URLSearchParams(query)}`);
+    const res = await fetch(`data/${id}.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-    renderNow(data.now, data.location);
+    const location = { ...data.location, name: label ?? data.location.name };
+    renderNow(data.now, location);
     renderHourly(data.short);
     renderDaily(data.short, data.mid);
-    const t = new Date();
-    $('#stamp').textContent = `${data.location.name} · ${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')} 갱신`;
+    const t = new Date(data.generatedAt);
+    $('#stamp').textContent = `${location.name} · ${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')} 수집`;
   } catch (e) {
-    $('#now').innerHTML = errorBox(`서버에 연결하지 못했습니다: ${e.message}`);
+    $('#now').innerHTML = errorBox(`날씨 데이터를 불러오지 못했습니다: ${e.message}`);
     $('#stamp').textContent = '';
   }
 }
 
 async function init() {
-  const cities = await fetch('/api/cities').then((r) => r.json());
+  cities = await fetch('data/cities.json', { cache: 'no-store' }).then((r) => r.json());
   const select = $('#city');
   let saved = null;
   try { saved = localStorage.getItem(STORE_KEY); } catch {}
-  select.innerHTML = cities.map((c) => `<option ${c === saved ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  select.innerHTML = cities
+    .map((c) => `<option value="${esc(c.id)}" ${c.id === saved ? 'selected' : ''}>${esc(c.name)}</option>`)
+    .join('');
 
   select.addEventListener('change', () => {
     try { localStorage.setItem(STORE_KEY, select.value); } catch {}
-    load({ city: select.value });
+    load(select.value);
   });
 
   $('#locate').addEventListener('click', () => {
     if (!navigator.geolocation) return alert('이 브라우저는 위치 정보를 지원하지 않습니다.');
     $('#stamp').textContent = '위치 확인 중…';
     navigator.geolocation.getCurrentPosition(
-      (pos) => load({ lat: pos.coords.latitude.toFixed(4), lon: pos.coords.longitude.toFixed(4) }),
+      (pos) => {
+        const c = nearestCity(pos.coords.latitude, pos.coords.longitude);
+        select.value = c.id;
+        load(c.id, `내 위치 (${c.name} 인근)`);
+      },
       (err) => { $('#stamp').textContent = `위치를 가져오지 못했습니다 (${err.message})`; },
       { timeout: 10000 },
     );
   });
 
-  $('#refresh').addEventListener('click', () => load(lastQuery));
+  $('#refresh').addEventListener('click', () => load(currentId, currentLabel));
 
-  load({ city: select.value });
+  load(select.value);
   // 10분마다 자동 갱신
-  setInterval(() => load(lastQuery), 10 * 60 * 1000);
+  setInterval(() => load(currentId, currentLabel), 10 * 60 * 1000);
 }
 
 init();

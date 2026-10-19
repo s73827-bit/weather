@@ -1,0 +1,45 @@
+name: 날씨 데이터 수집 및 Pages 배포
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # UTC 기준. 초단기실황이 매시 40분쯤 제공되므로 47분, 그리고 17분에 수집
+    - cron: '17,47 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 기상청 데이터 수집
+        run: node scripts/build-site.mjs _site
+        env:
+          KMA_AUTH_KEY: ${{ secrets.KMA_AUTH_KEY }}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

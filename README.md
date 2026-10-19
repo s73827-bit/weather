@@ -38,11 +38,30 @@ Node.js 22 이상, 외부 패키지 없음. 코드 수정 중에는 `npm run dev
 - API허브가 가끔 응답을 멈추므로 8초 시간 초과 시 한 번 더 시도합니다.
 - 응답은 10분간 메모리에 캐시합니다 (API허브 일반회원 일일 20,000건 한도).
 
+## GitHub Pages 배포
+
+Pages는 정적 파일만 올라가므로, GitHub Actions(`.github/workflows/pages.yml`)가 30분마다(매시 17·47분 UTC) 기상청 데이터를 받아 `data/<도시>.json`을 만들고 화면과 함께 배포합니다. 인증키는 GitHub Secrets에만 둡니다.
+
+1. 저장소 Settings → Secrets and variables → Actions → New repository secret
+   - Name: `KMA_AUTH_KEY`, Secret: API허브 인증키
+2. Settings → Pages → Build and deployment → Source: **GitHub Actions**
+3. Actions 탭 → "날씨 데이터 수집 및 Pages 배포" → Run workflow
+
+주소: `https://<사용자>.github.io/weather/`
+
+- 화면의 "수집" 시각은 데이터를 받은 시각입니다. GitHub의 예약 실행은 몇 분~수십 분 늦을 수 있습니다.
+- 저장소에 60일간 활동이 없으면 GitHub가 예약 실행을 멈춥니다. Actions 탭에서 다시 켜면 됩니다.
+- 21개 도시 × 5개 API = 1회 105건, 하루 약 5,000건 (일반회원 한도 20,000건)
+- 로컬에서 정적 빌드만 해 보려면: `node --env-file=.env scripts/build-site.mjs`
+
 ## 구조
 
 ```
-server.js          정적 파일 + /api/weather, /api/cities
+server.js          로컬 서버: 정적 파일 + data/*.json을 요청 시 생성
 lib/kma.js         API 호출, 발표시각 계산, 격자 변환, 응답 정리
+lib/data.js        도시별 화면 데이터(JSON) 생성
+scripts/build-site.mjs  GitHub Pages용 정적 사이트 생성 (_site/)
+.github/workflows/pages.yml  30분마다 수집·배포
 lib/regions.js     도시 목록과 중기예보 구역코드
 public/            화면 (index.html, style.css, app.js)
 ```
@@ -51,4 +70,4 @@ public/            화면 (index.html, style.css, app.js)
 
 ## 도시 추가
 
-`lib/regions.js`에 `{ name, lat, lon, midLand, midTa }`를 추가합니다. 구역코드는 중기예보 조회서비스 활용가이드의 구역코드표(xlsx)에서 찾을 수 있습니다.
+`lib/regions.js`에 `{ id, name, lat, lon, midLand, midTa }`를 추가합니다. `id`는 영문 소문자(데이터 파일명)입니다. 구역코드는 중기예보 조회서비스 활용가이드의 구역코드표(xlsx)에서 찾을 수 있습니다.
